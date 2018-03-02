@@ -19,5 +19,8 @@
     "ramda": "^0.25.0",
     "tmp-promise": "^1.0.4"
   },
+  "bin": {
+    "renamer": "bin/renamer"
+  },
   "private": true
 }
