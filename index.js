@@ -27,6 +27,11 @@ const error = msg => {
 	console.error(C.red('   ' + msg));
 	throw msg;
 };
+const fatal = msg => {
+	console.error(C.red(`   FATAL: ${ msg }`));
+	process.exit(1);
+};
+const contained = R.flip(R.contains);
 const streamMap = flyd.map;
 const streamFilter = require('flyd/module/filter');
 const streamTwo = stream => {
@@ -86,9 +91,15 @@ const streamTwo = stream => {
 				if (newNames.filter(n => path.normalize(n).replace(path.sep, '') !== n).length > 0)
 					error("Illegal filename used!");
 
-				filenames(
+				const newNamesPath =
 					R.zip(filenames().map(justDir), newNames)
-					.map(R.apply(path.join)));
+					.map(R.apply(path.join));
+
+				const changed = newNamesPath.filter(R.complement(contained(filenames())));
+				if (changed.map(fs.existsSync).some(R.identity))
+					error("Some filenames are already taken!");
+
+				filenames(newNamesPath);
 			} catch (e) { }
 		}));
 
@@ -102,9 +113,15 @@ const streamTwo = stream => {
 			if (changes.length > 0) {
 				message("Filename changes:");
 				changes.forEach(([oldName, newName]) => {
-					message(` • ${ justName(oldName) }`, 'gray');
-					message(` > ${ justName(newName) }`, 'green');
-					fs.renameSync(oldName, newName);
+					try {
+						message(` • ${ justName(oldName) }`, 'gray');
+						message(` > ${ justName(newName) }`, 'green');
+						if (!fs.existsSync(oldName))
+							fatal("File is missing!");
+						if (fs.existsSync(newName))
+							fatal("A different file with the target filename exists!");
+						fs.renameSync(oldName, newName);
+					} catch (e) {}
 				});
 			}
 		}));
