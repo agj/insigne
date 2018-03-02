@@ -1,0 +1,23 @@
+{
+  "name": "renamer",
+  "version": "0.0.1",
+  "description": "Rename files using your text editor.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "agj",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^2.3.2",
+    "commander": "^2.14.1",
+    "dot-into": "^1.0.2",
+    "flyd": "^0.2.6",
+    "mz": "^2.7.0",
+    "node-watch": "^0.5.7",
+    "opn": "^5.2.0",
+    "ramda": "^0.25.0",
+    "tmp-promise": "^1.0.4"
+  },
+  "private": true
+}
