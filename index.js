@@ -19,6 +19,7 @@ const log = (...msg) => {
 	return msg[0];
 };
 const prepend = pre => text => pre + text;
+const neq = R.complement(R.identical);
 const onUpdate = R.when(R.equals('update'));
 const justName = R.pipe(path.parse, R.prop('base'));
 const justDir = R.pipe(path.parse, R.prop('dir'));
@@ -31,7 +32,12 @@ const fatal = msg => {
 	console.error(C.red(`   FATAL: ${ msg }`));
 	process.exit(1);
 };
-const contained = R.flip(R.contains);
+const among = R.flip(R.contains);
+const differentPairs = (a, b) =>
+	R.zip(a, b)
+	.filter(R.apply(neq));
+const fileExists = fs.existsSync;
+
 const streamMap = flyd.map;
 const streamFilter = require('flyd/module/filter');
 const streamTwo = stream => {
@@ -95,8 +101,10 @@ const streamTwo = stream => {
 					R.zip(filenames().map(justDir), newNames)
 					.map(R.apply(path.join));
 
-				const changed = newNamesPath.filter(R.complement(contained(filenames())));
-				if (changed.map(fs.existsSync).some(R.identity))
+				const changed =
+					differentPairs(filenames(), newNamesPath)
+					.map(R.prop(1));
+				if (changed.some(fileExists))
 					error("Some filenames are already taken!");
 
 				filenames(newNamesPath);
@@ -107,18 +115,16 @@ const streamTwo = stream => {
 		.into(streamTwo)
 		.into(streamFilter(([a, b]) => a !== b))
 		.into(flyd.on(([oldNames, newNames]) => {
-			const changes =
-				R.zip(oldNames, newNames)
-				.filter(([a, b]) => a !== b);
+			const changes = differentPairs(oldNames, newNames);
 			if (changes.length > 0) {
 				message("Filename changes:");
 				changes.forEach(([oldName, newName]) => {
 					try {
 						message(` • ${ justName(oldName) }`, 'gray');
 						message(` > ${ justName(newName) }`, 'green');
-						if (!fs.existsSync(oldName))
+						if (!fileExists(oldName))
 							fatal("File is missing!");
-						if (fs.existsSync(newName))
+						if (fileExists(newName))
 							fatal("A different file with the target filename exists!");
 						fs.renameSync(oldName, newName);
 					} catch (e) {}
