@@ -37,6 +37,7 @@ const differentPairs = (a, b) =>
 	R.zip(a, b)
 	.filter(R.apply(neq));
 const fileExists = fs.existsSync;
+const sort = R.sort(R.ascend(R.identity));
 
 const streamMap = flyd.map;
 const streamFilter = require('flyd/module/filter');
@@ -59,7 +60,7 @@ const streamTwo = stream => {
 	.usage("<file ...>")
 	.parse(process.argv);
 
-	const startFilenames = program.args;
+	const startFilenames = sort(program.args);
 
 	if (startFilenames.length === 0) {
 		program.help();
