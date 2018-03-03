@@ -74,16 +74,16 @@ const streamTwo = stream => {
 
 		message(`Opening filename list at: ${ tempfile.path }`);
 
-		const tempContents = flyd.stream([]);
+		const tempContents = flyd.stream();
 
 		fs.writeFile(tempfile.path, filenamesNoPath().join('\n'), 'utf-8');
-		open(tempfile.path);
 
 		const tempWatcher = watch(tempfile.path);
 		tempWatcher.on('change', onUpdate(() =>
 			tempContents(
 				fs.readFileSync(tempfile.path, 'utf-8')
 				.split('\n'))));
+		open(tempfile.path);
 
 		tempContents
 		.into(flyd.on((newNames) => {
