@@ -5,6 +5,7 @@ const mockCLI = require('./mock-cli-promise');
 const flyd = require('flyd');
 const path = require('path');
 const R = require('ramda');
+const argv = require('yargs').argv
 
 const mockFs = require('./mocks/mock-mzfs');
 const mockCommander = require('./mocks/mock-commander');
@@ -20,29 +21,29 @@ module.exports = (config = {}) => {
 		version: 'test',
 		description: "Testing.",
 	});
-	const files = R.merge(
-		R.defaultTo(
-			{
-				'/first/folder/file 1.txt':  'file 1 contents',
-				'/first/folder/file 2.txt':  'file 2 contents',
-				'/second/folder/file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt': 'file 4 contents',
-			},
-			config.files),
-		{ [packagePath]: packageContents });
-	const args = R.concat(
-		[process.argv[0], '/path/to/renamer.js'],
-		R.defaultTo(
+	const initialFiles = R.defaultTo(
+		{
+			'/first/folder/file 1.txt':  'file 1 contents',
+			'/first/folder/file 2.txt':  'file 2 contents',
+			'/second/folder/file 3.txt': 'file 3 contents',
+			'/second/folder/file 4.txt': 'file 4 contents',
+		},
+		config.files);
+	const files = R.merge(initialFiles, { [packagePath]: packageContents });
+	const initialArgs = R.defaultTo(
 			['/first/folder/file 1.txt', '/first/folder/file 2.txt', '/second/folder/file 3.txt'],
-			config.args));
+			config.args);
+	const args = R.concat([process.argv[0], '/path/to/renamer.js'], initialArgs);
 
 	const fs = mockFs();
 	fs.setFiles(files);
 	const tmpOpened = flyd.stream();
 	const tmpChanged = flyd.stream();
 
-	// const [cliProcess, finish] = mockCLI(args, { stdout: process.stdout, stderr: process.stderr });
-	const [cliProcess, finish] = mockCLI(args);
+	const [cliProcess, finish] =
+		argv.verbose ?
+			mockCLI(args, { stdout: process.stdout, stderr: process.stderr })
+			: mockCLI(args);
 
 	const createTemp = () => {
 		fs.module.writeFileSync(tmpPath, '');
@@ -65,6 +66,8 @@ module.exports = (config = {}) => {
 	const getFiles = () => fs.getFiles().into(R.omit([packagePath, tmpPath]));
 
 	return {
+		initialFiles: initialFiles,
+		initialArgs: initialArgs,
 		fs: fs.module,
 		changeTemp,
 		getTemp,

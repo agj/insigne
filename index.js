@@ -31,6 +31,7 @@ const error = msg => {
 const fatal = msg => {
 	console.error(C.red(`   FATAL: ${ msg }`));
 	process.exit(1);
+	throw msg;
 };
 const among = R.flip(R.contains);
 const differentPairs = (a, b) =>
@@ -107,6 +108,8 @@ const streamTwo = stream => {
 					.map(R.prop(1));
 				if (changed.some(fileExists))
 					error("Some filenames are already taken!");
+				if (!filenames().every(fileExists))
+					fatal("Some files missing!");
 
 				filenames(newNamesPath);
 			} catch (e) { }

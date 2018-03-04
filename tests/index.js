@@ -31,7 +31,7 @@ test("Rename three files once.", assert => {
 			},
 			"Files changed.");
 	})
-	.catch(error => console.error(error));
+	.catch(console.error);
 });
 
 test("Fail if temp file has too few lines.", assert => {
@@ -45,17 +45,9 @@ test("Fail if temp file has too few lines.", assert => {
 
 	p.done.then(result => {
 		assert.notEqual(result.stderr, '', "Error message.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/file 1.txt':  'file 1 contents',
-				'/first/folder/file 2.txt':  'file 2 contents',
-				'/second/folder/file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt': 'file 4 contents',
-			},
-			"Files unchanged.");
+		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
-	.catch(error => console.error(error));
+	.catch(console.error);
 });
 
 test("Fail if temp file has too many lines.", assert => {
@@ -71,17 +63,9 @@ test("Fail if temp file has too many lines.", assert => {
 
 	p.done.then(result => {
 		assert.notEqual(result.stderr, '', "Error message.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/file 1.txt':  'file 1 contents',
-				'/first/folder/file 2.txt':  'file 2 contents',
-				'/second/folder/file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt': 'file 4 contents',
-			},
-			"Files unchanged.");
+		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
-	.catch(error => console.error(error));
+	.catch(console.error);
 });
 
 test("Fail if temp file has blank lines.", assert => {
@@ -97,17 +81,9 @@ test("Fail if temp file has blank lines.", assert => {
 
 	p.done.then(result => {
 		assert.notEqual(result.stderr, '', "Error message.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/file 1.txt':  'file 1 contents',
-				'/first/folder/file 2.txt':  'file 2 contents',
-				'/second/folder/file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt': 'file 4 contents',
-			},
-			"Files unchanged.");
+		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
-	.catch(error => console.error(error));
+	.catch(console.error);
 });
 
 test("Fail when target filename exists.", assert => {
@@ -122,17 +98,9 @@ test("Fail when target filename exists.", assert => {
 
 	p.done.then(result => {
 		assert.notEqual(result.stderr, '', "Error message.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/file 1.txt':  'file 1 contents',
-				'/first/folder/file 2.txt':  'file 2 contents',
-				'/second/folder/file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt': 'file 4 contents',
-			},
-			"Files unchanged.");
+		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
-	.catch(error => console.error(error));
+	.catch(console.error);
 });
 
 test("Fail when paths are identical.", assert => {
@@ -147,17 +115,9 @@ test("Fail when paths are identical.", assert => {
 
 	p.done.then(result => {
 		assert.notEqual(result.stderr, '', "Error message.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/file 1.txt':  'file 1 contents',
-				'/first/folder/file 2.txt':  'file 2 contents',
-				'/second/folder/file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt': 'file 4 contents',
-			},
-			"Files unchanged.");
+		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
-	.catch(error => console.error(error));
+	.catch(console.error);
 });
 
 test("Proceed when filenames but not paths are identical.", assert => {
@@ -182,7 +142,7 @@ test("Proceed when filenames but not paths are identical.", assert => {
 			},
 			"Files changed.");
 	})
-	.catch(error => console.error(error));
+	.catch(console.error);
 });
 
 test("Fail when target paths overlap with original paths.", assert => {
@@ -197,21 +157,13 @@ test("Fail when target paths overlap with original paths.", assert => {
 
 	p.done.then(result => {
 		assert.notEqual(result.stderr, '', "Error message.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/file 1.txt':  'file 1 contents',
-				'/first/folder/file 2.txt':  'file 2 contents',
-				'/second/folder/file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt': 'file 4 contents',
-			},
-			"Files unchanged.");
+		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
-	.catch(error => console.error(error));
+	.catch(console.error);
 });
 
 test("Filenames should be sorted by path in temp file.", assert => {
-	assert.plan(1);
+	assert.plan(2);
 
 	const p = prepare({
 		files: {
@@ -233,11 +185,14 @@ test("Filenames should be sorted by path in temp file.", assert => {
 				'file c.txt',
 				'file a.txt',
 				'file b.txt',
-			].join('\n')));
+			].join('\n'),
+			"Filenames correctly sorted."));
+	p.done.then(() =>
+		assert.ok(true, "Done."));
 });
 
-test("Should hard fail when a file goes missing.", assert => {
-	assert.plan(2);
+test("Should hard fail when a file goes missing before renaming.", assert => {
+	assert.plan(3);
 
 	const p = prepare();
 
@@ -250,7 +205,7 @@ test("Should hard fail when a file goes missing.", assert => {
 	});
 
 	p.done.then(result => {
-		assert.equal(result.stderr, '', "Error message.");
+		assert.notEqual(result.stderr, '', "Error message.");
 		assert.deepEqual(
 			p.getFiles(),
 			{
@@ -262,7 +217,27 @@ test("Should hard fail when a file goes missing.", assert => {
 			"Files untouched.");
 		assert.equal(result.code, 1, "Exit code 1");
 	})
-	.catch(error => console.error(error));
+	.catch(console.error);
 });
+
+test.skip("Should hard fail when a file goes missing after starting renaming.", assert => {
+	assert.plan(2);
+
+	const p = prepare();
+
+	p.ready.then(() => {
+		p.changeTemp([
+			'changed file 1.txt',
+			'changed file 2.txt',
+			'changed file 3.txt']);
+		p.fs.renameSync('/first/folder/file 2.txt', '/first/folder/file 2 gone.txt');
+	});
+
+	p.done.then(result => {
+		assert.notEqual(result.stderr, '', "Error message.");
+		assert.equal(result.code, 1, "Exit code 1");
+	})
+	.catch(console.error);
+})
 
 
