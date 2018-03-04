@@ -77,7 +77,7 @@ const streamTwo = stream => {
 
 		const tempContents = flyd.stream();
 
-		fs.writeFile(tempfile.path, filenamesNoPath().join('\n'), 'utf-8');
+		fs.writeFileSync(tempfile.path, filenamesNoPath().join('\n'), 'utf-8');
 
 		const tempWatcher = watch(tempfile.path);
 		tempWatcher.on('change', onUpdate(() =>
@@ -91,8 +91,6 @@ const streamTwo = stream => {
 			try {
 				if (newNames.length !== filenames().length)
 					error("New filename list has more or fewer lines than the original!");
-				if (R.uniq(newNames).length !== newNames.length)
-					error("Some filenames are identical!");
 				if (newNames.filter(R.isEmpty).length > 0)
 					error("Some lines are empty!");
 				if (newNames.filter(n => path.normalize(n).replace(path.sep, '') !== n).length > 0)
@@ -101,6 +99,8 @@ const streamTwo = stream => {
 				const newNamesPath =
 					R.zip(filenames().map(justDir), newNames)
 					.map(R.apply(path.join));
+				if (R.uniq(newNamesPath).length !== newNamesPath.length)
+					error("Some paths are identical!");
 
 				const changed =
 					differentPairs(filenames(), newNamesPath)
