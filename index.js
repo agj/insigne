@@ -51,6 +51,14 @@ const streamTwo = stream => {
 	}));
 	return r;
 };
+const streamTake = R.curry((n, stream) => {
+	let count = 0;
+	return flyd.combine((stream, self) => {
+			if (count >= n) self.end(true);
+			else            self(stream());
+			count++;
+		}, [stream]);
+});
 
 
 (async () => {
@@ -123,15 +131,13 @@ const streamTwo = stream => {
 			if (changes.length > 0) {
 				message("Filename changes:");
 				changes.forEach(([oldName, newName]) => {
-					try {
-						message(` • ${ justName(oldName) }`, 'gray');
-						message(` > ${ justName(newName) }`, 'green');
-						if (!fileExists(oldName))
-							fatal("File is missing!");
-						if (fileExists(newName))
-							fatal("A different file with the target filename exists!");
-						fs.renameSync(oldName, newName);
-					} catch (e) {}
+					message(` • ${ justName(oldName) }`, 'gray');
+					message(` > ${ justName(newName) }`, 'green');
+					if (!fileExists(oldName))
+						fatal("File is missing!");
+					if (fileExists(newName))
+						fatal("A different file with the target filename exists!");
+					fs.renameSync(oldName, newName);
 				});
 			}
 		}));

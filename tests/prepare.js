@@ -35,21 +35,20 @@ module.exports = (config = {}) => {
 			config.args);
 	const args = R.concat([process.argv[0], '/path/to/renamer.js'], initialArgs);
 
-	const fs = mockFs();
-	fs.setFiles(files);
+	const fs = mockFs({ files: files, onRename: config.onRename });
 	const tmpOpened = flyd.stream();
 	const tmpChanged = flyd.stream();
-
-	const [cliProcess, finish] =
-		argv.verbose ?
-			mockCLI(args, { stdout: process.stdout, stderr: process.stderr })
-			: mockCLI(args);
 
 	const createTemp = () => {
 		fs.module.writeFileSync(tmpPath, '');
 		tmpChanged(tmpPath);
 	};
 	const ready = new Promise((resolve) => tmpOpened.into(flyd.on(() => setTimeout(() => resolve(true)))));
+
+	const [cliProcess, finish] =
+		argv.verbose ?
+			mockCLI(args, { stdout: process.stdout, stderr: process.stderr })
+			: mockCLI(args);
 
 	proxyquire('../', {
 		'mz/fs': fs.module,
@@ -63,7 +62,9 @@ module.exports = (config = {}) => {
 		tmpChanged(tmpPath);
 	};
 	const getTemp = () => fs.module.readFileSync(tmpPath);
-	const getFiles = () => fs.getFiles().into(R.omit([packagePath, tmpPath]));
+	const relevantFiles =
+		fs.files
+		.into(flyd.map(R.omit([packagePath, tmpPath])));
 
 	return {
 		initialFiles: initialFiles,
@@ -71,7 +72,7 @@ module.exports = (config = {}) => {
 		fs: fs.module,
 		changeTemp,
 		getTemp,
-		getFiles,
+		files: relevantFiles,
 		finish,
 		ready,
 		done: cliProcess,
