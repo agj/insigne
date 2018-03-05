@@ -2,10 +2,10 @@
 
 const proxyquire = require('proxyquire').noCallThru();
 const mockCLI = require('./mock-cli-promise');
-const flyd = require('flyd');
 const path = require('path');
 const R = require('ramda');
 const argv = require('yargs').argv
+const defer = require('promise-defer');
 
 const mockFs = require('./mocks/mock-mzfs');
 const mockCommander = require('./mocks/mock-commander');
@@ -21,7 +21,7 @@ module.exports = (config = {}) => {
 		version: 'test',
 		description: "Testing.",
 	});
-	const initialFiles = R.defaultTo(
+	const filesToRename = R.defaultTo(
 		{
 			'/first/folder/file 1.txt':  'file 1 contents',
 			'/first/folder/file 2.txt':  'file 2 contents',
@@ -29,21 +29,21 @@ module.exports = (config = {}) => {
 			'/second/folder/file 4.txt': 'file 4 contents',
 		},
 		config.files);
-	const files = R.merge(initialFiles, { [packagePath]: packageContents });
+	const files = R.merge(filesToRename, { [packagePath]: packageContents });
 	const initialArgs = R.defaultTo(
 			['/first/folder/file 1.txt', '/first/folder/file 2.txt', '/second/folder/file 3.txt'],
 			config.args);
 	const args = R.concat([process.argv[0], '/path/to/renamer.js'], initialArgs);
 
 	const fs = mockFs({ files: files, onRename: config.onRename });
-	const tmpOpened = flyd.stream();
-	const tmpChanged = flyd.stream();
+	const watch = mockWatch();
 
 	const createTemp = () => {
 		fs.module.writeFileSync(tmpPath, '');
-		tmpChanged(tmpPath);
+		watch.changed(tmpPath);
 	};
-	const ready = new Promise((resolve) => tmpOpened.into(flyd.on(() => setTimeout(() => resolve(true)))));
+	const ready = defer();
+	const tmpOpened = () => ready.resolve(true);
 
 	const [cliProcess, finish] =
 		argv.verbose ?
@@ -52,29 +52,22 @@ module.exports = (config = {}) => {
 
 	proxyquire('../', {
 		'mz/fs': fs.module,
-		'node-watch': mockWatch({ changes: tmpChanged }),
+		'node-watch': watch.module,
 		opn: mockOpen({ onCalled: tmpOpened }),
 		'tmp-promise': mockTmp({ path: tmpPath, onCreateFile: createTemp }),
 	});
 
-	const changeTemp = contents => {
-		fs.module.writeFileSync(tmpPath, contents.join('\n'));
-		tmpChanged(tmpPath);
-	};
-	const getTemp = () => fs.module.readFileSync(tmpPath);
-	const relevantFiles =
-		fs.files
-		.into(flyd.map(R.omit([packagePath, tmpPath])));
-
 	return {
-		initialFiles: initialFiles,
-		initialArgs: initialArgs,
+		initialFiles: filesToRename,
 		fs: fs.module,
-		changeTemp,
-		getTemp,
-		files: relevantFiles,
+		getTemp: () => fs.module.readFileSync(tmpPath),
+		getFiles: () => fs.getFiles().into(R.omit([packagePath, tmpPath])),
+		setTemp: contents => {
+			fs.module.writeFileSync(tmpPath, contents.join('\n'));
+			watch.changed(tmpPath);
+		},
 		finish,
-		ready,
+		ready: ready.promise,
 		done: cliProcess,
 	};
 };
