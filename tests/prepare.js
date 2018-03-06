@@ -12,6 +12,7 @@ const mockCommander = require('./mocks/mock-commander');
 const mockWatch = require('./mocks/mock-node-watch');
 const mockOpen = require('./mocks/mock-opn');
 const mockTmp = require('./mocks/mock-tmp-promise');
+const mockOut = require('./mocks/mock-out');
 
 
 module.exports = (config = {}) => {
@@ -37,6 +38,7 @@ module.exports = (config = {}) => {
 
 	const fs = mockFs({ files: files, onRename: config.onRename });
 	const watch = mockWatch();
+	const out = mockOut();
 
 	const createTemp = () => {
 		fs.module.writeFileSync(tmpPath, '');
@@ -55,6 +57,7 @@ module.exports = (config = {}) => {
 		'node-watch': watch.module,
 		opn: mockOpen({ onCalled: tmpOpened }),
 		'tmp-promise': mockTmp({ path: tmpPath, onCreateFile: createTemp }),
+		'./src/out': out.module,
 	});
 
 	return {
@@ -66,6 +69,9 @@ module.exports = (config = {}) => {
 			fs.module.writeFileSync(tmpPath, contents.join('\n'));
 			watch.changed(tmpPath);
 		},
+		getMessages: out.getMessages,
+		getErrors: out.getErrors,
+		getFatalExit: out.getFatalExit,
 		finish,
 		ready: ready.promise,
 		done: cliProcess,

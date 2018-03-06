@@ -1,7 +1,7 @@
 'use strict';
 
 const proxyquire = require('proxyquire').noCallThru();
-const test = require('tape');
+const test = require('tape-catch');
 const R = require('ramda');
 require('dot-into').install();
 
@@ -89,7 +89,7 @@ test("Fail if temp file has too few lines.", assert => {
 		'changed file 2.txt']));
 
 	p.done.then(result => {
-		assert.notEqual(result.stderr, '', "Error message.");
+		assert.ok(p.getErrors().length > 0, "Error message.");
 		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
 	.catch(console.error);
@@ -107,7 +107,7 @@ test("Fail if temp file has too many lines.", assert => {
 		'something extra']));
 
 	p.done.then(result => {
-		assert.notEqual(result.stderr, '', "Error message.");
+		assert.ok(p.getErrors().length > 0, "Error message.");
 		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
 	.catch(console.error);
@@ -124,7 +124,7 @@ test("Fail if temp file has blank lines.", assert => {
 		'changed file 3.txt']));
 
 	p.done.then(result => {
-		assert.notEqual(result.stderr, '', "Error message.");
+		assert.ok(p.getErrors().length > 0, "Error message.");
 		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
 	.catch(console.error);
@@ -141,7 +141,7 @@ test("Fail when target filename exists.", assert => {
 		'file 4.txt']));
 
 	p.done.then(result => {
-		assert.notEqual(result.stderr, '', "Error message.");
+		assert.ok(p.getErrors().length > 0, "Error message.");
 		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
 	.catch(console.error);
@@ -158,7 +158,7 @@ test("Fail when paths are identical.", assert => {
 		'changed file 3.txt']));
 
 	p.done.then(result => {
-		assert.notEqual(result.stderr, '', "Error message.");
+		assert.ok(p.getErrors().length > 0, "Error message.");
 		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
 	.catch(console.error);
@@ -175,7 +175,7 @@ test("Proceed when filenames but not paths are identical.", assert => {
 		'changed file 3.txt']));
 
 	p.done.then(result => {
-		assert.equal(result.stderr, '', "No error message.");
+		assert.ok(p.getErrors().length === 0, "No error message.");
 		assert.deepEqual(
 			p.getFiles(),
 			{
@@ -200,7 +200,7 @@ test("Fail when target paths overlap with original paths.", assert => {
 		'file 3.txt']));
 
 	p.done.then(result => {
-		assert.notEqual(result.stderr, '', "Error message.");
+		assert.ok(p.getErrors().length > 0, "Error message.");
 		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 	})
 	.catch(console.error);
@@ -249,7 +249,8 @@ test("Should hard fail when a file goes missing before renaming.", assert => {
 	});
 
 	p.done.then(result => {
-		assert.notEqual(result.stderr, '', "Error message.");
+		assert.ok(p.getErrors().length > 0, "Error message.");
+		assert.ok(p.getFatalExit(), "Exit code 1.");
 		assert.deepEqual(
 			p.getFiles(),
 			{
@@ -259,7 +260,6 @@ test("Should hard fail when a file goes missing before renaming.", assert => {
 				'/second/folder/file 4.txt':      'file 4 contents',
 			},
 			"Files untouched.");
-		assert.equal(result.code, 1, "Exit code 1");
 	})
 	.catch(console.error);
 });
@@ -278,8 +278,8 @@ test("Should hard fail when a file goes missing after renaming started.", assert
 	});
 
 	p.done.then(result => p.files.into(flyd.on(() => {
-		assert.notEqual(result.stderr, '', "Error message.");
-		assert.equal(result.code, 1, "Exit code 1");
+		assert.ok(p.getErrors().length > 0, "Error message.");
+		assert.ok(p.getFatalExit(), "Exit code 1.");
 		assert.deepEqual(
 			p.getFiles(),
 			{
@@ -307,8 +307,8 @@ test.skip("Should hard fail when a file with the target filename appears after r
 	});
 
 	p.done.then(result => {
-		assert.notEqual(result.stderr, '', "Error message.");
-		assert.equal(result.code, 1, "Exit code 1");
+		assert.ok(p.getErrors().length > 0, "Error message.");
+		assert.ok(p.getFatalExit(), "Exit code 1.");
 		assert.deepEqual(
 			p.getFiles(),
 			{

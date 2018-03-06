@@ -4,12 +4,13 @@ const R = require('ramda');
 const fs = require('mz/fs');
 const program = require('commander');
 const path = require('path');
-const C = require('chalk');
 const tmp = require('tmp-promise');
 const open = require('opn');
 const watch = require('node-watch');
 const flyd = require('flyd');
 require('dot-into').install();
+
+const out = require('./src/out');
 
 
 // Utilities.
@@ -23,16 +24,6 @@ const neq = R.complement(R.identical);
 const onUpdate = R.when(R.equals('update'));
 const justName = R.pipe(path.parse, R.prop('base'));
 const justDir = R.pipe(path.parse, R.prop('dir'));
-const message = (msg, color = 'white') => console.log(C[color](msg.split('\n').map(prepend('   ')).join('\n')));
-const error = msg => {
-	console.error(C.red('   ' + msg));
-	throw msg;
-};
-const fatal = msg => {
-	console.error(C.red(`   FATAL: ${ msg }`));
-	process.exit(1);
-	throw msg;
-};
 const among = R.flip(R.contains);
 const differentPairs = (a, b) =>
 	R.zip(a, b)
@@ -82,7 +73,7 @@ const streamTake = R.curry((n, stream) => {
 			filenames
 			.into(streamMap(R.map(justName)));
 
-		message(`Opening filename list at: ${ tempfile.path }`);
+		out.message(`Opening filename list at: ${ tempfile.path }`);
 
 		const tempContents = flyd.stream();
 
@@ -99,25 +90,25 @@ const streamTake = R.curry((n, stream) => {
 		.into(flyd.on((newNames) => {
 			try {
 				if (newNames.length !== filenames().length)
-					error("New filename list has more or fewer lines than the original!");
+					out.error("New filename list has more or fewer lines than the original!");
 				if (newNames.filter(R.isEmpty).length > 0)
-					error("Some lines are empty!");
+					out.error("Some lines are empty!");
 				if (newNames.filter(n => path.normalize(n).replace(path.sep, '') !== n).length > 0)
-					error("Illegal filename used!");
+					out.error("Illegal filename used!");
 
 				const newNamesPath =
 					R.zip(filenames().map(justDir), newNames)
 					.map(R.apply(path.join));
 				if (R.uniq(newNamesPath).length !== newNamesPath.length)
-					error("Some paths are identical!");
+					out.error("Some paths are identical!");
 
 				const changed =
 					differentPairs(filenames(), newNamesPath)
 					.map(R.prop(1));
 				if (changed.some(fileExists))
-					error("Some filenames are already taken!");
+					out.error("Some filenames are already taken!");
 				if (!filenames().every(fileExists))
-					fatal("Some files missing!");
+					out.fatal("Some files missing!");
 
 				filenames(newNamesPath);
 			} catch (e) { }
@@ -129,14 +120,14 @@ const streamTake = R.curry((n, stream) => {
 		.into(flyd.on(([oldNames, newNames]) => {
 			const changes = differentPairs(oldNames, newNames);
 			if (changes.length > 0) {
-				message("Filename changes:");
+				out.message("Filename changes:");
 				changes.forEach(([oldName, newName]) => {
-					message(` • ${ justName(oldName) }`, 'gray');
-					message(` > ${ justName(newName) }`, 'green');
+					out.message(` • ${ justName(oldName) }`, 'gray');
+					out.message(` > ${ justName(newName) }`, 'green');
 					if (!fileExists(oldName))
-						fatal("File is missing!");
+						out.fatal("File is missing!");
 					if (fileExists(newName))
-						fatal("A different file with the target filename exists!");
+						out.fatal("A different file with the target filename exists!");
 					fs.renameSync(oldName, newName);
 				});
 			}
