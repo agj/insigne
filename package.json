@@ -24,6 +24,7 @@
   },
   "private": true,
   "devDependencies": {
+    "blue-tape": "^1.0.0",
     "mock-cli": "^0.1.2",
     "promise-defer": "^1.0.0",
     "proxyquire": "^2.0.0",

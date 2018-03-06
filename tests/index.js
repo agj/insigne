@@ -1,7 +1,7 @@
 'use strict';
 
 const proxyquire = require('proxyquire').noCallThru();
-const test = require('tape-catch');
+const test = require('blue-tape');
 const R = require('ramda');
 require('dot-into').install();
 
@@ -13,32 +13,31 @@ const makeCounter = () => {
 };
 
 
-test("Rename three files simultaneously.", assert => {
-	assert.plan(2);
-
+test("Rename three files simultaneously.", async assert => {
 	const p = prepare();
 
-	p.ready.then(() => p.setTemp([
+	await p.ready;
+
+	p.setTemp([
 		'changed file 1.txt',
 		'changed file 2.txt',
-		'changed file 3.txt']));
+		'changed file 3.txt']);
 
-	p.done.then(result => {
-		assert.equal(result.stderr, '', "No error message.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/changed file 1.txt':  'file 1 contents',
-				'/first/folder/changed file 2.txt':  'file 2 contents',
-				'/second/folder/changed file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt':         'file 4 contents',
-			},
-			"Files changed.");
-	})
-	.catch(console.error);
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length == 0, "No error message.");
+	assert.deepEqual(
+		p.getFiles(),
+		{
+			'/first/folder/changed file 1.txt':  'file 1 contents',
+			'/first/folder/changed file 2.txt':  'file 2 contents',
+			'/second/folder/changed file 3.txt': 'file 3 contents',
+			'/second/folder/file 4.txt':         'file 4 contents',
+		},
+		"Files changed.");
 });
 
-test("Rename three files in succession.", assert => {
+test("Rename three files in succession.", async assert => {
 	assert.plan(2);
 
 	const count = makeCounter();
@@ -62,152 +61,26 @@ test("Rename three files in succession.", assert => {
 
 	const p = prepare({ onRename: performNext });
 
-	p.ready.then(performNext);
+	await p.ready;
 
-	p.done.then(result => {
-		assert.equal(result.stderr, '', "No error message.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/changed file 1.txt':  'file 1 contents',
-				'/first/folder/changed file 2.txt':  'file 2 contents',
-				'/second/folder/changed file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt':         'file 4 contents',
-			},
-			"Files changed.");
-	})
-	.catch(console.error);
+	performNext();
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length == 0, "No error message.");
+	assert.deepEqual(
+		p.getFiles(),
+		{
+			'/first/folder/changed file 1.txt':  'file 1 contents',
+			'/first/folder/changed file 2.txt':  'file 2 contents',
+			'/second/folder/changed file 3.txt': 'file 3 contents',
+			'/second/folder/file 4.txt':         'file 4 contents',
+		},
+		"Files changed.");
 });
 
-test("Fail if temp file has too few lines.", assert => {
-	assert.plan(2);
-
-	const p = prepare();
-
-	p.ready.then(() => p.setTemp([
-		'changed file 1.txt',
-		'changed file 2.txt']));
-
-	p.done.then(result => {
-		assert.ok(p.getErrors().length > 0, "Error message.");
-		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
-	})
-	.catch(console.error);
-});
-
-test("Fail if temp file has too many lines.", assert => {
-	assert.plan(2);
-
-	const p = prepare();
-
-	p.ready.then(() => p.setTemp([
-		'changed file 1.txt',
-		'changed file 2.txt',
-		'changed file 3.txt',
-		'something extra']));
-
-	p.done.then(result => {
-		assert.ok(p.getErrors().length > 0, "Error message.");
-		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
-	})
-	.catch(console.error);
-});
-
-test("Fail if temp file has blank lines.", assert => {
-	assert.plan(2);
-
-	const p = prepare();
-
-	p.ready.then(() => p.setTemp([
-		'changed file 1.txt',
-		'',
-		'changed file 3.txt']));
-
-	p.done.then(result => {
-		assert.ok(p.getErrors().length > 0, "Error message.");
-		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
-	})
-	.catch(console.error);
-});
-
-test("Fail when target filename exists.", assert => {
-	assert.plan(2);
-
-	const p = prepare();
-
-	p.ready.then(() => p.setTemp([
-		'changed file 1.txt',
-		'changed file 2.txt',
-		'file 4.txt']));
-
-	p.done.then(result => {
-		assert.ok(p.getErrors().length > 0, "Error message.");
-		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
-	})
-	.catch(console.error);
-});
-
-test("Fail when paths are identical.", assert => {
-	assert.plan(2);
-
-	const p = prepare();
-
-	p.ready.then(() => p.setTemp([
-		'changed file 1.txt',
-		'changed file 1.txt',
-		'changed file 3.txt']));
-
-	p.done.then(result => {
-		assert.ok(p.getErrors().length > 0, "Error message.");
-		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
-	})
-	.catch(console.error);
-});
-
-test("Proceed when filenames but not paths are identical.", assert => {
-	assert.plan(2);
-
-	const p = prepare();
-
-	p.ready.then(() => p.setTemp([
-		'changed file 1.txt',
-		'changed file 3.txt',
-		'changed file 3.txt']));
-
-	p.done.then(result => {
-		assert.ok(p.getErrors().length === 0, "No error message.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/changed file 1.txt':  'file 1 contents',
-				'/first/folder/changed file 3.txt':  'file 2 contents',
-				'/second/folder/changed file 3.txt': 'file 3 contents',
-				'/second/folder/file 4.txt':         'file 4 contents',
-			},
-			"Files changed.");
-	})
-	.catch(console.error);
-});
-
-test("Fail when target paths overlap with original paths.", assert => {
-	assert.plan(2);
-
-	const p = prepare();
-
-	p.ready.then(() => p.setTemp([
-		'file 2.txt',
-		'file 1.txt',
-		'file 3.txt']));
-
-	p.done.then(result => {
-		assert.ok(p.getErrors().length > 0, "Error message.");
-		assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
-	})
-	.catch(console.error);
-});
-
-test("Filenames should be sorted by path in temp file.", assert => {
-	assert.plan(2);
+test("Filenames should be sorted by path in temp file.", async assert => {
+	assert.plan(1);
 
 	const p = prepare({
 		files: {
@@ -222,105 +95,238 @@ test("Filenames should be sorted by path in temp file.", assert => {
 		],
 	});
 
-	p.ready.then(() =>
-		assert.deepEqual(
-			p.getTemp(),
-			[
-				'file c.txt',
-				'file a.txt',
-				'file b.txt',
-			].join('\n'),
-			"Filenames correctly sorted."));
-	p.done.then(() =>
-		assert.ok(true, "Done."));
+	await p.ready;
+	await p.done;
+
+	assert.deepEqual(
+		p.getTemp(),
+		[
+			'file c.txt',
+			'file a.txt',
+			'file b.txt',
+		].join('\n'),
+		"Filenames correctly sorted.");
 });
 
-test("Should hard fail when a file goes missing before renaming.", assert => {
+test("Fail if temp file has too few lines.", async assert => {
+	assert.plan(2);
+
+	const p = prepare();
+
+	await p.ready;
+
+	p.setTemp([
+		'changed file 1.txt',
+		'changed file 2.txt']);
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
+});
+
+test("Fail if temp file has too many lines.", async assert => {
+	assert.plan(2);
+
+	const p = prepare();
+
+	await p.ready;
+
+	p.setTemp([
+		'changed file 1.txt',
+		'changed file 2.txt',
+		'changed file 3.txt',
+		'something extra']);
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
+});
+
+test("Fail if temp file has blank lines.", async assert => {
+	assert.plan(2);
+
+	const p = prepare();
+
+	await p.ready;
+
+	p.setTemp([
+		'changed file 1.txt',
+		'',
+		'changed file 3.txt']);
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
+});
+
+test("Fail when target filename exists.", async assert => {
+	assert.plan(2);
+
+	const p = prepare();
+
+	await p.ready;
+
+	p.setTemp([
+		'changed file 1.txt',
+		'changed file 2.txt',
+		'file 4.txt']);
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
+});
+
+test("Fail when paths are identical.", async assert => {
+	assert.plan(2);
+
+	const p = prepare();
+
+	await p.ready;
+
+	p.setTemp([
+		'changed file 1.txt',
+		'changed file 1.txt',
+		'changed file 3.txt']);
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
+});
+
+test("Proceed when filenames but not paths are identical.", async assert => {
+	assert.plan(2);
+
+	const p = prepare();
+
+	await p.ready;
+
+	p.setTemp([
+		'changed file 1.txt',
+		'changed file 3.txt',
+		'changed file 3.txt']);
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length === 0, "No error message.");
+	assert.deepEqual(
+		p.getFiles(),
+		{
+			'/first/folder/changed file 1.txt':  'file 1 contents',
+			'/first/folder/changed file 3.txt':  'file 2 contents',
+			'/second/folder/changed file 3.txt': 'file 3 contents',
+			'/second/folder/file 4.txt':         'file 4 contents',
+		},
+		"Files changed.");
+});
+
+test("Fail when target paths overlap with original paths.", async assert => {
+	assert.plan(2);
+
+	const p = prepare();
+
+	await p.ready;
+
+	p.setTemp([
+		'file 2.txt',
+		'file 1.txt',
+		'file 3.txt']);
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
+});
+
+test("Should hard fail when a file goes missing before renaming.", async assert => {
 	assert.plan(3);
 
 	const p = prepare();
 
-	p.ready.then(() => {
-		p.fs.renameSync('/first/folder/file 2.txt', '/first/folder/file 2 gone.txt');
-		p.setTemp([
-			'changed file 1.txt',
-			'changed file 2.txt',
-			'changed file 3.txt']);
-	});
+	await p.ready;
 
-	p.done.then(result => {
-		assert.ok(p.getErrors().length > 0, "Error message.");
-		assert.ok(p.getFatalExit(), "Exit code 1.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/file 1.txt':       'file 1 contents',
-				'/first/folder/file 2 gone.txt':  'file 2 contents',
-				'/second/folder/file 3.txt':      'file 3 contents',
-				'/second/folder/file 4.txt':      'file 4 contents',
-			},
-			"Files untouched.");
-	})
-	.catch(console.error);
+	p.fs.renameSync('/first/folder/file 2.txt', '/first/folder/file 2 gone.txt');
+	p.setTemp([
+		'changed file 1.txt',
+		'changed file 2.txt',
+		'changed file 3.txt']);
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getFatalExit(), "Exit code 1.");
+	assert.deepEqual(
+		p.getFiles(),
+		{
+			'/first/folder/file 1.txt':       'file 1 contents',
+			'/first/folder/file 2 gone.txt':  'file 2 contents',
+			'/second/folder/file 3.txt':      'file 3 contents',
+			'/second/folder/file 4.txt':      'file 4 contents',
+		},
+		"Files untouched.");
 });
 
-test("Should hard fail when a file goes missing after renaming started.", assert => {
+test("Should hard fail when a file goes missing after renaming started.", async assert => {
 	assert.plan(3);
+
+	process.on('beforeExit', () => console.log('EXIT'));
 
 	const onRename = R.once(() => p.fs.renameSync('/first/folder/file 2.txt', '/first/folder/file 2 gone.txt'));
 	const p = prepare({ onRename: onRename });
 
-	p.ready.then(() => {
-		p.setTemp([
-			'changed file 1.txt',
-			'changed file 2.txt',
-			'changed file 3.txt']);
-	});
+	await p.ready;
 
-	p.done.then(result => p.files.into(flyd.on(() => {
-		assert.ok(p.getErrors().length > 0, "Error message.");
-		assert.ok(p.getFatalExit(), "Exit code 1.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/changed file 1.txt': 'file 1 contents',
-				'/first/folder/file 2 gone.txt':    'file 2 contents',
-				'/second/folder/file 3.txt':        'file 3 contents',
-				'/second/folder/file 4.txt':        'file 4 contents',
-			},
-			"Files modified until error.");
-	})))
-	.catch(console.error);
+	p.setTemp([
+		'changed file 1.txt',
+		'changed file 2.txt',
+		'changed file 3.txt']);
+
+	const result = await p.done
+
+	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getFatalExit(), "Exit code 1.");
+	assert.deepEqual(
+		p.getFiles(),
+		{
+			'/first/folder/changed file 1.txt': 'file 1 contents',
+			'/first/folder/file 2 gone.txt':    'file 2 contents',
+			'/second/folder/file 3.txt':        'file 3 contents',
+			'/second/folder/file 4.txt':        'file 4 contents',
+		},
+		"Files modified until error.");
 });
 
-test.skip("Should hard fail when a file with the target filename appears after renaming started.", assert => {
+test.skip("Should hard fail when a file with the target filename appears after renaming started.", async assert => {
 	assert.plan(3);
 
 	const onRename = R.once(() => p.fs.writeFileSync('/first/folder/changed file 2.txt', 'jammed in'));
 	const p = prepare({ onRename: onRename });
 
-	p.ready.then(() => {
-		p.setTemp([
-			'changed file 1.txt',
-			'changed file 2.txt',
-			'changed file 3.txt']);
-	});
+	await p.ready;
 
-	p.done.then(result => {
-		assert.ok(p.getErrors().length > 0, "Error message.");
-		assert.ok(p.getFatalExit(), "Exit code 1.");
-		assert.deepEqual(
-			p.getFiles(),
-			{
-				'/first/folder/changed file 1.txt': 'file 1 contents',
-				'/first/folder/file 2.txt':         'file 2 contents',
-				'/first/folder/changed file 2.txt': 'jammed in',
-				'/second/folder/file 3.txt':        'file 3 contents',
-				'/second/folder/file 4.txt':        'file 4 contents',
-			},
-			"Files modified until error.");
-	})
-	.catch(console.error);
+	p.setTemp([
+		'changed file 1.txt',
+		'changed file 2.txt',
+		'changed file 3.txt']);
+
+	const result = await p.done;
+
+	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getFatalExit(), "Exit code 1.");
+	assert.deepEqual(
+		p.getFiles(),
+		{
+			'/first/folder/changed file 1.txt': 'file 1 contents',
+			'/first/folder/file 2.txt':         'file 2 contents',
+			'/first/folder/changed file 2.txt': 'jammed in',
+			'/second/folder/file 3.txt':        'file 3 contents',
+			'/second/folder/file 4.txt':        'file 4 contents',
+		},
+		"Files modified until error.");
 });
 
 
