@@ -1,13 +1,19 @@
 {
-  "name": "renamer",
-  "version": "0.0.1",
+  "name": "insigne",
+  "version": "1.0.0",
   "description": "Rename files using your text editor.",
+  "author": {
+    "name": "agj",
+    "url": "http://agj.cl"
+  },
+  "license": "MIT",
   "main": "index.js",
+  "bin": {
+    "insigne": "bin/insigne"
+  },
   "scripts": {
     "test": "node tests/ | tap-spec"
   },
-  "author": "agj",
-  "license": "MIT",
   "dependencies": {
     "chalk": "^2.3.2",
     "commander": "^2.14.1",
@@ -20,10 +26,6 @@
     "ramda": "^0.25.0",
     "tmp-promise": "^1.0.4"
   },
-  "bin": {
-    "renamer": "bin/renamer"
-  },
-  "private": true,
   "devDependencies": {
     "blue-tape": "^1.0.0",
     "mock-cli": "^0.1.2",
@@ -31,5 +33,9 @@
     "proxyquire": "^2.0.0",
     "tap-spec": "^4.1.1",
     "yargs": "^11.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agj/insigne.git"
   }
 }
