@@ -25,7 +25,7 @@ test("Rename three files simultaneously.", async assert => {
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length == 0, "No error message.");
+	assert.false(p.getHasErrors(), "No error message.");
 	assert.deepEqual(
 		p.getFiles(),
 		{
@@ -67,7 +67,7 @@ test("Rename three files in succession.", async assert => {
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length == 0, "No error message.");
+	assert.false(p.getHasErrors(), "No error message.");
 	assert.deepEqual(
 		p.getFiles(),
 		{
@@ -121,7 +121,7 @@ test("Fail if temp file has too few lines.", async assert => {
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getHasErrors(), "Error message.");
 	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 });
 
@@ -140,7 +140,7 @@ test("Fail if temp file has too many lines.", async assert => {
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getHasErrors(), "Error message.");
 	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 });
 
@@ -158,7 +158,7 @@ test("Fail if temp file has blank lines.", async assert => {
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getHasErrors(), "Error message.");
 	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 });
 
@@ -176,7 +176,7 @@ test("Fail when target filename exists.", async assert => {
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getHasErrors(), "Error message.");
 	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 });
 
@@ -194,7 +194,7 @@ test("Fail when paths are identical.", async assert => {
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getHasErrors(), "Error message.");
 	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 });
 
@@ -212,7 +212,7 @@ test("Proceed when filenames but not paths are identical.", async assert => {
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length === 0, "No error message.");
+	assert.false(p.getHasErrors(), "No error message.");
 	assert.deepEqual(
 		p.getFiles(),
 		{
@@ -238,7 +238,7 @@ test("Fail when target paths overlap with original paths.", async assert => {
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getHasErrors(), "Error message.");
 	assert.deepEqual(p.getFiles(), p.initialFiles, "Files unchanged.");
 });
 
@@ -257,7 +257,7 @@ test("Should hard fail when a file goes missing before renaming.", async assert 
 
 	const result = await p.done;
 
-	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getHasErrors(), "Error message.");
 	assert.ok(p.getFatalExit(), "Exit code 1.");
 	assert.deepEqual(
 		p.getFiles(),
@@ -273,8 +273,6 @@ test("Should hard fail when a file goes missing before renaming.", async assert 
 test("Should hard fail when a file goes missing after renaming started.", async assert => {
 	assert.plan(3);
 
-	process.on('beforeExit', () => console.log('EXIT'));
-
 	const onRename = R.once(() => p.fs.renameSync('/first/folder/file 2.txt', '/first/folder/file 2 gone.txt'));
 	const p = prepare({ onRename: onRename });
 
@@ -285,9 +283,9 @@ test("Should hard fail when a file goes missing after renaming started.", async 
 		'changed file 2.txt',
 		'changed file 3.txt']);
 
-	const result = await p.done
+	await p.done;
 
-	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getHasErrors(), "Error message.");
 	assert.ok(p.getFatalExit(), "Exit code 1.");
 	assert.deepEqual(
 		p.getFiles(),
@@ -300,7 +298,7 @@ test("Should hard fail when a file goes missing after renaming started.", async 
 		"Files modified until error.");
 });
 
-test.skip("Should hard fail when a file with the target filename appears after renaming started.", async assert => {
+test("Should hard fail when a file with the target filename appears after renaming started.", async assert => {
 	assert.plan(3);
 
 	const onRename = R.once(() => p.fs.writeFileSync('/first/folder/changed file 2.txt', 'jammed in'));
@@ -313,9 +311,9 @@ test.skip("Should hard fail when a file with the target filename appears after r
 		'changed file 2.txt',
 		'changed file 3.txt']);
 
-	const result = await p.done;
+	await p.done;
 
-	assert.ok(p.getErrors().length > 0, "Error message.");
+	assert.ok(p.getHasErrors(), "Error message.");
 	assert.ok(p.getFatalExit(), "Exit code 1.");
 	assert.deepEqual(
 		p.getFiles(),

@@ -72,6 +72,7 @@ module.exports = (config = {}) => {
 		getMessages: out.getMessages,
 		getErrors: out.getErrors,
 		getFatalExit: out.getFatalExit,
+		getHasErrors: () => out.getErrors().length > 0,
 		finish,
 		ready: ready.promise,
 		done: cliProcess,

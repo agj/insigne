@@ -7,10 +7,10 @@ const path = require('path');
 const tmp = require('tmp-promise');
 const open = require('opn');
 const watch = require('node-watch');
-const flyd = require('flyd');
 require('dot-into').install();
 
 const out = require('./src/out');
+const stream = require('./src/stream-wrap');
 
 
 // Utilities.
@@ -31,26 +31,6 @@ const differentPairs = (a, b) =>
 const fileExists = fs.existsSync;
 const sort = R.sort(R.ascend(R.identity));
 
-const streamMap = flyd.map;
-const streamFilter = require('flyd/module/filter');
-const streamTwo = stream => {
-	const r = flyd.stream();
-	let prev = stream();
-	stream.into(flyd.on(v => {
-		r([prev, v]);
-		prev = v;
-	}));
-	return r;
-};
-const streamTake = R.curry((n, stream) => {
-	let count = 0;
-	return flyd.combine((stream, self) => {
-			if (count >= n) self.end(true);
-			else            self(stream());
-			count++;
-		}, [stream]);
-});
-
 
 (async () => {
 
@@ -68,15 +48,16 @@ const streamTake = R.curry((n, stream) => {
 
 	} else {
 		const tempfile = await tmp.file({ postfix: '.txt', prefix: 'rename-' });
-		const filenames = flyd.stream(startFilenames);
+		const filenames = stream.make(startFilenames);
 		const filenamesNoPath =
 			filenames
-			.into(streamMap(R.map(justName)));
+			.into(stream.map(R.map(justName)));
 
 		out.message(`Opening filename list at: ${ tempfile.path }`);
 
-		const tempContents = flyd.stream();
+		const tempContents = stream.make();
 
+		console.log('???', startFilenames, filenames(), filenamesNoPath())
 		fs.writeFileSync(tempfile.path, filenamesNoPath().join('\n'), 'utf-8');
 
 		const tempWatcher = watch(tempfile.path);
@@ -87,7 +68,7 @@ const streamTake = R.curry((n, stream) => {
 		open(tempfile.path);
 
 		tempContents
-		.into(flyd.on((newNames) => {
+		.into(stream.on((newNames) => {
 			try {
 				if (newNames.length !== filenames().length)
 					out.error("New filename list has more or fewer lines than the original!");
@@ -115,9 +96,9 @@ const streamTake = R.curry((n, stream) => {
 		}));
 
 		filenames
-		.into(streamTwo)
-		.into(streamFilter(([a, b]) => a !== b))
-		.into(flyd.on(([oldNames, newNames]) => {
+		.into(stream.pairs)
+		.into(stream.filter(([a, b]) => a !== b))
+		.into(stream.on(([oldNames, newNames]) => {
 			const changes = differentPairs(oldNames, newNames);
 			if (changes.length > 0) {
 				out.message("Filename changes:");
