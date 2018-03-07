@@ -7,6 +7,7 @@ const path = require('path');
 const tmp = require('tmp-promise');
 const open = require('opn');
 const watch = require('node-watch');
+const escapeRE = require('escape-string-regexp');
 require('dot-into').install();
 
 const out = require('./src/out');
@@ -24,6 +25,18 @@ const neq = R.complement(R.identical);
 const onUpdate = R.when(R.equals('update'));
 const justName = R.pipe(path.parse, R.prop('base'));
 const justDir = R.pipe(path.parse, R.prop('dir'));
+const toAbsolute = name => !path.isAbsolute(name) ? path.resolve(process.cwd(), name) : name;
+const commonPath = paths => {
+	const ps =
+		paths
+		.map(R.split(path.sep))
+		.map(R.dropLast(1));
+	return _commonPath(ps, ps[0]).join('/');
+}
+const _commonPath = (paths, check) =>
+	check.length === 0 || paths.map(R.take(check.length)).every(R.equals(check))
+	? check
+	: _commonPath(paths, R.take(check.length - 1, check));
 const among = R.flip(R.contains);
 const differentPairs = (a, b) =>
 	R.zip(a, b)
@@ -40,7 +53,7 @@ const sort = R.sort(R.ascend(R.identity));
 	.usage("<file ...>")
 	.parse(process.argv);
 
-	const startFilenames = sort(program.args);
+	const startFilenames = sort(program.args.map(path.normalize).map(toAbsolute));
 
 	if (startFilenames.length === 0) {
 		program.help();
@@ -52,12 +65,12 @@ const sort = R.sort(R.ascend(R.identity));
 		const filenamesNoPath =
 			filenames
 			.into(stream.map(R.map(justName)));
+		const commonBase = commonPath(filenames());
 
 		out.message(`Opening filename list at: ${ tempfile.path }`);
 
 		const tempContents = stream.make();
 
-		console.log('???', startFilenames, filenames(), filenamesNoPath())
 		fs.writeFileSync(tempfile.path, filenamesNoPath().join('\n'), 'utf-8');
 
 		const tempWatcher = watch(tempfile.path);
@@ -103,8 +116,8 @@ const sort = R.sort(R.ascend(R.identity));
 			if (changes.length > 0) {
 				out.message("Filename changes:");
 				changes.forEach(([oldName, newName]) => {
-					out.message(` • ${ justName(oldName) }`, 'gray');
-					out.message(` > ${ justName(newName) }`, 'green');
+					out.message(` • ${ path.relative(commonBase, oldName) }`, 'gray');
+					out.message(` > ${ path.relative(commonBase, newName) }`, 'green');
 					if (!fileExists(oldName))
 						out.fatal("File is missing!");
 					if (fileExists(newName))

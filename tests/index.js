@@ -3,6 +3,7 @@
 const proxyquire = require('proxyquire').noCallThru();
 const test = require('blue-tape');
 const R = require('ramda');
+const path = require('path');
 require('dot-into').install();
 
 const prepare = require('./prepare');
@@ -12,6 +13,22 @@ const makeCounter = () => {
 	return () => n++;
 };
 
+
+test("Correctly get base filenames in temporary file.", async assert => {
+	const p = prepare();
+
+	await p.ready;
+	await p.done;
+
+	assert.deepEqual(
+		p.getTemp(),
+		[
+			'file 1.txt',
+			'file 2.txt',
+			'file 3.txt',
+		].join('\n'),
+		"Filenames correct.");
+});
 
 test("Rename three files simultaneously.", async assert => {
 	const p = prepare();
@@ -79,6 +96,43 @@ test("Rename three files in succession.", async assert => {
 		"Files changed.");
 });
 
+test("Correctly handle relative paths.", async assert => {
+	assert.plan(2);
+
+	const cwd = process.cwd();
+	const p = prepare({
+		files: {
+			[path.resolve(cwd, '..') + '/file a.txt']: 'a',
+			[cwd + '/file b.txt']: 'b',
+			[cwd + '/folder/file c.txt']: 'c',
+		},
+		args: [
+			'../file a.txt',
+			'file b.txt',
+			'folder/file c.txt',
+		],
+	});
+
+	await p.ready;
+
+	p.setTemp([
+		'changed file a.txt',
+		'changed file b.txt',
+		'changed file c.txt']);
+
+	const result = await p.done;
+
+	assert.false(p.getHasErrors(), "No error message.");
+	assert.deepEqual(
+		p.getFiles(),
+		{
+			[path.resolve(cwd, '..') + '/changed file a.txt']: 'a',
+			[cwd + '/changed file b.txt']: 'b',
+			[cwd + '/folder/changed file c.txt']: 'c',
+		},
+		"Files changed.");
+});
+
 test("Filenames should be sorted by path in temp file.", async assert => {
 	assert.plan(1);
 
@@ -106,6 +160,44 @@ test("Filenames should be sorted by path in temp file.", async assert => {
 			'file b.txt',
 		].join('\n'),
 		"Filenames correctly sorted.");
+});
+
+test("Console output should disambiguate filenames by displaying path up to common base.", async assert => {
+	assert.plan(1);
+
+	const p = prepare({
+		files: {
+			'/folder/deep/file.txt': 'a',
+			'/folder/file.txt': 'b',
+			'/folder/two/deep/file.txt': 'c',
+		},
+		args: [
+			'/folder/deep/file.txt',
+			'/folder/file.txt',
+			'/folder/two/deep/file.txt',
+		],
+	});
+
+	await p.ready;
+
+	p.setTemp([
+		'changed file.txt',
+		'changed file.txt',
+		'changed file.txt']);
+
+	await p.done;
+
+	assert.deepEqual(
+		p.getMessages().into(R.takeLast(6)),
+		[
+			' • deep/file.txt',
+			' > deep/changed file.txt',
+			' • file.txt',
+			' > changed file.txt',
+			' • two/deep/file.txt',
+			' > two/deep/changed file.txt',
+		],
+		"Output correct.");
 });
 
 test("Fail if temp file has too few lines.", async assert => {
